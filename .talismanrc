@@ -1,1 +1,15 @@
 threshold: medium
+
+allowed_patterns:
+# Ignore commit hashes
+- .*@[a-fA-F0-9]*
+# Ignore checksums
+- sha256:[a-fA-F0-9]*
+
+fileignoreconfig:
+- filename: Cargo.lock
+  checksum: 90a4dab2e70bc928f24725867531ae57ecd8fe3335c9d4ee120d8a17e2c57490
+  ignore_detectors: []
+- filename: plugins/pnpm-lock.yaml
+  checksum: 2e99218833c260fbfd77f5eddadaeb0876e14eb40cda4c6e448446084ec040ef
+  ignore_detectors: []
