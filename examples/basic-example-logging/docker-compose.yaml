@@ -36,7 +36,7 @@ services:
       - ${LOG_DATA_DIR:-./logs}:/app/logs
     depends_on:
       - redis
-    restart: on-failure:5
+    restart: on-failure:1
 
 
   redis:

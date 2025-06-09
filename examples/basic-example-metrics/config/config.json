@@ -17,7 +17,7 @@
     {
       "id": "notification-example",
       "type": "webhook",
-      "url": "",
+      "url": "https://webhook.site/1fb53b0d-5f3f-42ce-9266-65dd514da4da",
       "signing_key": {
         "type": "env",
         "value": "WEBHOOK_SIGNING_KEY"
@@ -36,5 +36,6 @@
         }
       }
     }
-  ]
+  ],
+  "networks": "/app/config/networks"
 }
