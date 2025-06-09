@@ -473,7 +473,10 @@ mod tests {
     async fn test_process_signer_aws_kms() -> Result<()> {
         let signer = SignerFileConfig {
             id: "aws-kms-signer".to_string(),
-            config: SignerFileConfigEnum::AwsKms(AwsKmsSignerFileConfig {}),
+            config: SignerFileConfigEnum::AwsKms(AwsKmsSignerFileConfig {
+                region: Some("us-east-1".to_string()),
+                key_id: "test-key-id".to_string(),
+            }),
         };
 
         let result = process_signer(&signer).await;
