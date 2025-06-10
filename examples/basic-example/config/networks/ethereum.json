@@ -1,19 +1,6 @@
 {
   "networks": [
     {
-      "average_blocktime_ms": 2000,
-      "chain_id": 1337,
-      "explorer_urls": [],
-      "features": [
-      ],
-      "is_testnet": true,
-      "network": "anvil",
-      "required_confirmations": 1,
-      "rpc_urls": ["http://host.docker.internal:8545"],
-      "symbol": "ETH",
-      "type": "evm"
-    },
-    {
       "average_blocktime_ms": 12000,
       "chain_id": 1,
       "explorer_urls": [
@@ -49,7 +36,10 @@
       "network": "sepolia",
       "required_confirmations": 6,
       "rpc_urls": [
-        "https://ethereum-sepolia-rpc.publicnode.com"
+        "https://sepolia.drpc.org",
+        "https://1rpc.io/sepolia",
+        "https://ethereum-sepolia-rpc.publicnode.com",
+        "https://ethereum-sepolia-public.nodies.app"
       ],
       "symbol": "ETH",
       "tags": [
