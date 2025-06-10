@@ -9,7 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@openzeppelin/relayer-sdk": "^0.1.0",
+    "@openzeppelin/relayer-sdk": "github:OpenZeppelin/openzeppelin-relayer-sdk#2f249c911386588ae29597b62a94199b95d0545a",
     "ethers": "^6.14.3"
   }
 }
