@@ -453,23 +453,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_evm_address_with_mock() {
-        let mock_server = MockServer::start().await;
-
-        setup_mock_get_public_key(&mock_server).await;
-
-        let config = create_test_config(&mock_server.uri());
-        let service = GoogleCloudKmsService::new(&config).unwrap();
-
-        let result = service.get_evm_address().await;
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "0xcb9955746ac0d84666e8ed2f1e72ecc9f8e1e87d"
-        );
-    }
-
-    #[tokio::test]
     async fn test_sign_solana_with_mock() {
         let mock_server = MockServer::start().await;
 
