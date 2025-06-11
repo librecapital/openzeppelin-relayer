@@ -1,17 +1,17 @@
+import { RelayersApi, HealthApi, MetricsApi } from '@openzeppelin/relayer-sdk/src/api.ts';
 import { type ApiResponseVecRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-relayer-response.ts';
 import { type ApiResponseRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-relayer-response.ts'
 import { type ApiResponseBalanceResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-balance-response.ts';
 import { type ApiResponseBool } from '@openzeppelin/relayer-sdk/src/models/api-response-bool.ts'
 import { type ApiResponseVecTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-transaction-response.ts'
+import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-request.ts';
 import { Configuration } from '@openzeppelin/relayer-sdk/src/configuration.ts';
 import { test, expect, describe } from 'bun:test';
 import type { AxiosResponse } from 'axios';
-import axios from 'axios';
-import { RelayersApi, HealthApi, MetricsApi } from '@openzeppelin/relayer-sdk/src/api.ts';
 
 const config = new Configuration({
-    basePath: 'http://localhost:8080',
-    accessToken: 'a70d7a0e-6ea9-4176-9ff4-d5719d93af2c',
+  basePath: 'http://localhost:8080',
+  accessToken: 'a70d7a0e-6ea9-4176-9ff4-d5719d93af2c',
 });
 
 const relayersApi = new RelayersApi(config);
@@ -64,104 +64,123 @@ const relayer_id = relayer_id_sei;
 //         console.log('listMetrics:', data);
 //     });
 //
-    // test('metricDetail returns details of a specific metric', async () => {
-    //     const metricName = 'process_cpu_seconds_total';
-    //     const { status, data } = await metricsApi.metricDetail(metricName) as AxiosResponse<string>;
-    //     expect(status).toBe(200);
-    //     expect(typeof data).toBe('string');
-    //     console.log('metricDetail:', data);
-    // });
-    //
-    // test('scrapeMetrics triggers an update of system metrics', async () => {
-    //     const { status, data } = await metricsApi.scrapeMetrics() as AxiosResponse<string>;
-    //     expect(status).toBe(200);
-    //     expect(typeof data).toBe('string');
-    //     console.log('scrapeMetrics:', data);
-    // });
+// test('metricDetail returns details of a specific metric', async () => {
+//     const metricName = 'process_cpu_seconds_total';
+//     const { status, data } = await metricsApi.metricDetail(metricName) as AxiosResponse<string>;
+//     expect(status).toBe(200);
+//     expect(typeof data).toBe('string');
+//     console.log('metricDetail:', data);
+// });
+//
+// test('scrapeMetrics triggers an update of system metrics', async () => {
+//     const { status, data } = await metricsApi.scrapeMetrics() as AxiosResponse<string>;
+//     expect(status).toBe(200);
+//     expect(typeof data).toBe('string');
+//     console.log('scrapeMetrics:', data);
+// });
 // });
 //
 describe('RelayersApi Tests', () => {
-    test('listRelayers returns a list of relayers', async () => {
-        try {
-            const { status, data } = await relayersApi
-                .listRelayers() as AxiosResponse<ApiResponseVecRelayerResponse>;
+  test('listRelayers returns a list of relayers', async () => {
+    try {
+      const { status, data } = await relayersApi
+        .listRelayers() as AxiosResponse<ApiResponseVecRelayerResponse>;
 
-            expect(status).toBe(200);
-            expect(data.success).toBe(true);
+      expect(status).toBe(200);
+      expect(data.success).toBe(true);
 
-            const relayers = data.data;
-            expect(Array.isArray(relayers)).toBe(true);
+      const relayers = data.data;
+      expect(Array.isArray(relayers)).toBe(true);
 
-            console.log("listRelayers", relayers);
-        }
-        catch (e) {
-            e.message
-        }
+      console.log("listRelayers", relayers);
+    }
+    catch (e) {
+      e.message
+    }
 
-    });
+  });
 
-    test('getRelayer returns details of a specific relayer', async () => {
-        try {
-            const { status, data } = await relayersApi
-                .getRelayer(relayer_id) as AxiosResponse<ApiResponseRelayerResponse>;
+  test('getRelayer returns details of a specific relayer', async () => {
+    try {
+      const { status, data } = await relayersApi
+        .getRelayer(relayer_id) as AxiosResponse<ApiResponseRelayerResponse>;
 
-            expect(status).toBe(200);
-            expect(data.success).toBe(true);
+      expect(status).toBe(200);
+      expect(data.success).toBe(true);
 
-            const relayerData = data.data;
-            expect(relayerData).toBeDefined();
-            expect(relayerData!.id).toBe(relayer_id);
-            console.log('getRelayer:', relayerData);
-        }
-        catch (e) {
-            e.message
-        }
-    });
+      const relayerData = data.data;
+      expect(relayerData).toBeDefined();
+      expect(relayerData!.id).toBe(relayer_id);
+      console.log('getRelayer:', relayerData);
+    }
+    catch (e) {
+      e.message
+    }
+  });
 
-    test('getRelayerBalance returns the balance of a specific relayer', async () => {
-        try {
-            const { status, data } = await relayersApi
-                .getRelayerBalance(relayer_id) as AxiosResponse<ApiResponseBalanceResponse>;
+  test('getRelayerBalance returns the balance of a specific relayer', async () => {
+    try {
+      const { status, data } = await relayersApi
+        .getRelayerBalance(relayer_id) as AxiosResponse<ApiResponseBalanceResponse>;
 
-            expect(status).toBe(200);
-            const relayerBalance = data.data;
-            expect(relayerBalance).toBeDefined();
+      expect(status).toBe(200);
+      const relayerBalance = data.data;
+      expect(relayerBalance).toBeDefined();
 
-            console.log('getRelayerBalance:', relayerBalance);
-        }
-        catch (e) {
-            e.message
-        }
+      console.log('getRelayerBalance:', relayerBalance);
+    }
+    catch (e) {
+      e.message
+    }
 
-    });
+  });
 
-    test('getRelayerStatus returns the status of a specific relayer', async () => {
-        try {
-            const { status, data } = await relayersApi
-                .getRelayerStatus(relayer_id) as AxiosResponse<ApiResponseBool>;
+  test('getRelayerStatus returns the status of a specific relayer', async () => {
+    try {
+      const { status, data } = await relayersApi
+        .getRelayerStatus(relayer_id) as AxiosResponse<ApiResponseBool>;
 
-            expect(status).toBe(200);
-            const relayerStatus = data.data;
-            expect(relayerStatus).toBeDefined();
-            console.log('getRelayerStatus:', relayerStatus);
-        }
-        catch (e) {
-            e.message
-        }
-    });
+      expect(status).toBe(200);
+      const relayerStatus = data.data;
+      expect(relayerStatus).toBeDefined();
+      console.log('getRelayerStatus:', relayerStatus);
+    }
+    catch (e) {
+      e.message
+    }
+  });
 
-    test('listTransactions returns a list of transactions for a specific relayer', async () => {
-        try {
-            const { status, data } = await relayersApi
-                .listTransactions(relayer_id) as AxiosResponse<ApiResponseVecTransactionResponse>;
+  test('listTransactions returns a list of transactions for a specific relayer', async () => {
+    try {
+      const { status, data } = await relayersApi
+        .listTransactions(relayer_id) as AxiosResponse<ApiResponseVecTransactionResponse>;
 
-            expect(status).toBe(200);
-            console.log('listTransactions:', data);
-        }
-        catch (e) {
-            e.message
-        }
-    });
+      expect(status).toBe(200);
+      console.log('listTransactions:', data);
+    }
+    catch (e) {
+      e.message
+    }
+  });
+
+  test('sendTransaction works', async () => {
+    const tx_request: EvmTransactionRequest = {
+      gas_limit: 100000,
+      value: 10000,
+      to: '0xbeef'
+    };
+    try {
+      const { status, data } = await relayersApi
+        .sendTransaction(relayer_id, tx_request) as AxiosResponse<ApiResponseVecTransactionResponse>;
+
+      expect(status).toBe(200);
+      console.log('listTransactions:', data);
+    }
+    catch (e) {
+      e.message
+    }
+  });
+
 });
 
 
