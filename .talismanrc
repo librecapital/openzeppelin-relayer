@@ -8,7 +8,7 @@ allowed_patterns:
 
 fileignoreconfig:
 - filename: Cargo.lock
-  checksum: a0236e276851c1251de2c461fe895cecd4ec3c082690160e1d8d047cfd10e09a
+  checksum: cf138b9650da1e905e861b689689c702f8cfa3266712c1061282903c7d2b4c71
   ignore_detectors: []
 - filename: plugins/pnpm-lock.yaml
   checksum: 2e99218833c260fbfd77f5eddadaeb0876e14eb40cda4c6e448446084ec040ef
