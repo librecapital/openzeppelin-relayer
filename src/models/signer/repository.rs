@@ -33,7 +33,10 @@ pub struct LocalSignerConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct AwsKmsSignerConfig {}
+pub struct AwsKmsSignerConfig {
+    pub region: Option<String>,
+    pub key_id: String,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VaultTransitSignerConfig {
@@ -101,8 +104,10 @@ impl SignerConfig {
             | Self::Test(config)
             | Self::Vault(config)
             | Self::VaultCloud(config) => Some(config),
-            Self::VaultTransit(_) | Self::AwsKms(_) | Self::Turnkey(_) => None,
-            Self::GoogleCloudKms(_) => None,
+            Self::VaultTransit(_)
+            | Self::AwsKms(_)
+            | Self::Turnkey(_)
+            | Self::GoogleCloudKms(_) => None,
         }
     }
 
@@ -332,7 +337,10 @@ mod tests {
             mount_point: None,
         });
 
-        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {});
+        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {
+            region: Some("us-east-1".to_string()),
+            key_id: "test-key-id".to_string(),
+        });
 
         let turnkey_config = SignerConfig::Turnkey(TurnkeySignerConfig {
             api_private_key: SecretString::new("123"),
@@ -436,7 +444,10 @@ mod tests {
         });
         assert!(google_cloud_kms_config.get_local().is_none());
 
-        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {});
+        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {
+            region: Some("us-east-1".to_string()),
+            key_id: "test-key-id".to_string(),
+        });
         assert!(aws_kms_config.get_local().is_none());
 
         let turnkey_config = SignerConfig::Turnkey(TurnkeySignerConfig {
@@ -451,7 +462,10 @@ mod tests {
 
     #[test]
     fn test_signer_config_get_aws_kms() {
-        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {});
+        let aws_kms_config = SignerConfig::AwsKms(AwsKmsSignerConfig {
+            region: Some("us-east-1".to_string()),
+            key_id: "test-key-id".to_string(),
+        });
         assert!(aws_kms_config.get_aws_kms().is_some());
 
         // Test with configs that should return None

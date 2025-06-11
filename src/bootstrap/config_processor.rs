@@ -57,9 +57,12 @@ async fn process_signer(signer: &SignerFileConfig) -> Result<SignerRepoModel> {
                 config: SignerConfig::Local(LocalSignerConfig { raw_key }),
             }
         }
-        SignerFileConfigEnum::AwsKms(_) => SignerRepoModel {
+        SignerFileConfigEnum::AwsKms(aws_kms_config) => SignerRepoModel {
             id: signer.id.clone(),
-            config: SignerConfig::AwsKms(AwsKmsSignerConfig {}),
+            config: SignerConfig::AwsKms(AwsKmsSignerConfig {
+                region: aws_kms_config.region.clone(),
+                key_id: aws_kms_config.key_id.clone(),
+            }),
         },
         SignerFileConfigEnum::Vault(vault_config) => {
             let config = VaultConfig {
@@ -302,6 +305,7 @@ async fn process_relayers<J: JobProducerTrait>(
             .ok_or_else(|| eyre::eyre!("Signer not found"))?;
         let network_type = repo_model.network_type;
         let signer_service = SignerFactory::create_signer(&network_type, signer_model)
+            .await
             .wrap_err("Failed to create signer service")?;
 
         let address = signer_service.address().await?;

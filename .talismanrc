@@ -8,8 +8,10 @@ allowed_patterns:
 
 fileignoreconfig:
 - filename: Cargo.lock
-  checksum: 90a4dab2e70bc928f24725867531ae57ecd8fe3335c9d4ee120d8a17e2c57490
+  checksum: a0236e276851c1251de2c461fe895cecd4ec3c082690160e1d8d047cfd10e09a
   ignore_detectors: []
 - filename: plugins/pnpm-lock.yaml
   checksum: 2e99218833c260fbfd77f5eddadaeb0876e14eb40cda4c6e448446084ec040ef
   ignore_detectors: []
+- filename: src/utils/der.rs
+  checksum: 4219a6f6002afe6a9dd52e95d7d0dd7c21651bed725e1f958fe0bf695d387131
