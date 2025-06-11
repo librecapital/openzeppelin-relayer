@@ -1,0 +1,16 @@
+{
+  "networks": [
+    {
+      "average_blocktime_ms": 2000,
+      "chain_id": 1328,
+      "explorer_urls": [],
+      "features": [],
+      "is_testnet": true,
+      "network": "sei-testnet",
+      "required_confirmations": 1,
+      "rpc_urls": ["https://evm-rpc-testnet.sei-apis.com"],
+      "symbol": "SEI",
+      "type": "evm"
+    }
+  ]
+}
