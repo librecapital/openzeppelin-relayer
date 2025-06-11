@@ -20,7 +20,7 @@
 //!   └── Message Signing
 //! ```
 
-use alloy::primitives::keccak256;
+use alloy::primitives::{eip191_hash_message, keccak256};
 use async_trait::async_trait;
 use aws_config::{meta::region::RegionProviderChain, BehaviorVersion, Region};
 use aws_sdk_kms::{
@@ -56,12 +56,22 @@ pub enum AwsKmsError {
 
 pub type AwsKmsResult<T> = Result<T, AwsKmsError>;
 
+#[derive(Debug, Clone)]
+pub enum PayloadType {
+    Transaction,
+    Message,
+}
+
 #[async_trait]
 pub trait AwsKmsServiceTrait: Send + Sync {
     /// Returns the EVM address derived from the configured public key.
     async fn get_evm_address(&self) -> AwsKmsResult<Address>;
-    /// Signs a message using the EVM signing scheme.
-    async fn sign_evm_bytes(&self, message: &[u8]) -> AwsKmsResult<Vec<u8>>;
+    /// Signs a payload using the EVM signing scheme.
+    async fn sign_payload_evm(
+        &self,
+        payload: &[u8],
+        payload_type: PayloadType,
+    ) -> AwsKmsResult<Vec<u8>>;
 }
 
 #[derive(Debug, Clone)]
@@ -129,8 +139,20 @@ impl AwsKmsService {
     }
 
     /// Signs a bytes with the private key stored in AWS KMS.
-    pub async fn sign_data_evm(&self, bytes: &[u8]) -> AwsKmsResult<Vec<u8>> {
-        let digest = keccak256(bytes).0;
+    pub async fn sign_bytes_evm(
+        &self,
+        bytes: &[u8],
+        payload_type: PayloadType,
+    ) -> AwsKmsResult<Vec<u8>> {
+        // Create a digest of a message payload
+        let digest = match payload_type {
+            // If the payload is a message, apply EIP-191 hash
+            PayloadType::Message => eip191_hash_message(bytes).0,
+            // Otherwise apply keccak256
+            PayloadType::Transaction => keccak256(bytes).0,
+        };
+
+        // Sign the digest with the AWS KMS
         let sign_result = self
             .client
             .sign()
@@ -141,6 +163,7 @@ impl AwsKmsService {
             .send()
             .await;
 
+        // Process the result, extract DER signature
         let der_signature = sign_result
             .map_err(|e| AwsKmsError::PermissionError(e.to_string()))?
             .signature
@@ -149,15 +172,20 @@ impl AwsKmsService {
             ))?
             .into_inner();
 
+        // Parse DER into Secp256k1 format
         let rs = k256::ecdsa::Signature::from_der(&der_signature)
             .map_err(|e| AwsKmsError::ParseError(e.to_string()))?;
 
         let der_pk = self.get_der_pk().await?;
+
+        // Extract public key from AWS KMS and convert it to an uncompressed 64 pk
         let pk = extract_public_key_from_der(&der_pk)
             .map_err(|e| AwsKmsError::ParseError(e.to_string()))?;
 
+        // Extract v value from the public key recovery
         let v = Self::recover_public_key(&pk, &rs, bytes)?;
 
+        // Append `v` to a signature bytes
         let mut sig_bytes = rs.to_vec();
         sig_bytes.push(v);
 
@@ -171,7 +199,11 @@ impl AwsKmsServiceTrait for AwsKmsService {
         self.get_evm_address().await
     }
 
-    async fn sign_evm_bytes(&self, message: &[u8]) -> AwsKmsResult<Vec<u8>> {
-        self.sign_evm_bytes(message).await
+    async fn sign_payload_evm(
+        &self,
+        message: &[u8],
+        payload_type: PayloadType,
+    ) -> AwsKmsResult<Vec<u8>> {
+        self.sign_bytes_evm(message, payload_type).await
     }
 }
