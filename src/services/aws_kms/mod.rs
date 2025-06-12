@@ -20,7 +20,7 @@
 //!   └── Message Signing
 //! ```
 
-use alloy::primitives::{eip191_hash_message, keccak256};
+use alloy::primitives::keccak256;
 use async_trait::async_trait;
 use aws_config::{meta::region::RegionProviderChain, BehaviorVersion, Region};
 use aws_sdk_kms::{
@@ -30,10 +30,11 @@ use aws_sdk_kms::{
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use serde::Serialize;
+use sha3::{Digest, Keccak256};
 
 use crate::{
     models::{Address, AwsKmsSignerConfig},
-    utils::extract_public_key_from_der,
+    utils::{derive_ethereum_address_from_der, extract_public_key_from_der},
 };
 
 #[derive(Debug, thiserror::Error, Serialize)]
@@ -56,22 +57,13 @@ pub enum AwsKmsError {
 
 pub type AwsKmsResult<T> = Result<T, AwsKmsError>;
 
-#[derive(Debug, Clone)]
-pub enum PayloadType {
-    Transaction,
-    Message,
-}
-
 #[async_trait]
 pub trait AwsKmsServiceTrait: Send + Sync {
     /// Returns the EVM address derived from the configured public key.
     async fn get_evm_address(&self) -> AwsKmsResult<Address>;
     /// Signs a payload using the EVM signing scheme.
-    async fn sign_payload_evm(
-        &self,
-        payload: &[u8],
-        payload_type: PayloadType,
-    ) -> AwsKmsResult<Vec<u8>>;
+    /// Pre-hashes the message with keccak-256.
+    async fn sign_payload_evm(&self, payload: &[u8]) -> AwsKmsResult<Vec<u8>>;
 }
 
 #[derive(Debug, Clone)]
@@ -118,11 +110,13 @@ impl AwsKmsService {
     }
 
     fn recover_public_key(pk: &[u8], sig: &Signature, bytes: &[u8]) -> AwsKmsResult<u8> {
+        let mut hasher = Keccak256::new();
+        hasher.update(bytes);
         for v in 0..2 {
             let rec_id =
                 RecoveryId::try_from(v).map_err(|e| AwsKmsError::RecoveryError(e.to_string()))?;
 
-            let recovered_key = VerifyingKey::recover_from_msg(bytes, sig, rec_id)
+            let recovered_key = VerifyingKey::recover_from_digest(hasher.clone(), sig, rec_id)
                 .map_err(|e| AwsKmsError::RecoveryError(e.to_string()))?
                 .to_encoded_point(false)
                 .as_bytes()
@@ -139,18 +133,11 @@ impl AwsKmsService {
     }
 
     /// Signs a bytes with the private key stored in AWS KMS.
-    pub async fn sign_bytes_evm(
-        &self,
-        bytes: &[u8],
-        payload_type: PayloadType,
-    ) -> AwsKmsResult<Vec<u8>> {
+    ///
+    /// Pre-hashes the message with keccak256.
+    pub async fn sign_bytes_evm(&self, bytes: &[u8]) -> AwsKmsResult<Vec<u8>> {
         // Create a digest of a message payload
-        let digest = match payload_type {
-            // If the payload is a message, apply EIP-191 hash
-            PayloadType::Message => eip191_hash_message(bytes).0,
-            // Otherwise apply keccak256
-            PayloadType::Transaction => keccak256(bytes).0,
-        };
+        let digest = keccak256(bytes).0;
 
         // Sign the digest with the AWS KMS
         let sign_result = self
@@ -196,14 +183,55 @@ impl AwsKmsService {
 #[async_trait]
 impl AwsKmsServiceTrait for AwsKmsService {
     async fn get_evm_address(&self) -> AwsKmsResult<Address> {
-        self.get_evm_address().await
+        let der = self.get_der_pk().await?;
+        let eth_address = derive_ethereum_address_from_der(&der)
+            .map_err(|e| AwsKmsError::ParseError(e.to_string()))?;
+        Ok(Address::Evm(eth_address))
     }
 
-    async fn sign_payload_evm(
-        &self,
-        message: &[u8],
-        payload_type: PayloadType,
-    ) -> AwsKmsResult<Vec<u8>> {
-        self.sign_bytes_evm(message, payload_type).await
+    async fn sign_payload_evm(&self, message: &[u8]) -> AwsKmsResult<Vec<u8>> {
+        self.sign_bytes_evm(message).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy::primitives::utils::eip191_message;
+    use k256::{ecdsa::SigningKey, elliptic_curve::rand_core::OsRng};
+
+    use super::*;
+
+    #[test]
+    fn test_recover_public_key() {
+        // Generate keypair
+        let signing_key = SigningKey::random(&mut OsRng);
+        let verifying_key = signing_key.verifying_key();
+        let public_key_bytes = verifying_key.to_encoded_point(false).as_bytes().to_vec();
+
+        // Create a message
+        let message = b"example message to sign";
+
+        // EIP-191 style of a message
+        let eip_message = eip191_message(message);
+
+        // Ethereum-style hash: keccak256 of message
+        let mut hasher = Keccak256::new();
+        hasher.update(eip_message.clone());
+
+        // Sign the message pre-hash
+        let (signature, rec_id) = signing_key.sign_digest_recoverable(hasher).unwrap();
+
+        // Try to recover the public key
+        let recovery_result =
+            AwsKmsService::recover_public_key(&public_key_bytes, &signature, &eip_message);
+
+        // Check that a valid recovery ID (0 or 1) is returned
+        match recovery_result {
+            Ok(v) => {
+                assert!(v == 0 || v == 1, "Recovery ID should be 0 or 1, got {}", v);
+                assert_eq!(rec_id.to_byte(), v, "Recovery ID should match")
+            }
+            Err(e) => panic!("Failed to recover public key: {:?}", e),
+        }
     }
 }

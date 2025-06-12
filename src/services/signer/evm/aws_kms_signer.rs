@@ -1,6 +1,6 @@
 use alloy::{
     consensus::{SignableTransaction, TxEip1559, TxLegacy},
-    primitives::{eip191_hash_message, PrimitiveSignature},
+    primitives::{eip191_hash_message, utils::eip191_message, PrimitiveSignature},
 };
 use async_trait::async_trait;
 
@@ -13,7 +13,7 @@ use crate::{
         Address, EvmTransactionDataSignature, EvmTransactionDataTrait, NetworkTransactionData,
         SignerError,
     },
-    services::{AwsKmsService, AwsKmsServiceTrait, DataSignerTrait, PayloadType, Signer},
+    services::{AwsKmsService, AwsKmsServiceTrait, DataSignerTrait, Signer},
 };
 
 pub type DefaultAwsKmsService = AwsKmsService;
@@ -27,6 +27,13 @@ where
 
 impl AwsKmsSigner<DefaultAwsKmsService> {
     pub fn new(aws_kms_service: AwsKmsService) -> Self {
+        Self { aws_kms_service }
+    }
+}
+
+#[cfg(test)]
+impl<T: AwsKmsServiceTrait> AwsKmsSigner<T> {
+    pub fn new_for_testing(aws_kms_service: T) -> Self {
         Self { aws_kms_service }
     }
 }
@@ -53,10 +60,7 @@ impl<T: AwsKmsServiceTrait> Signer for AwsKmsSigner<T> {
             let payload = unsigned_tx.encoded_for_signing();
 
             // Sign payload
-            let signed_bytes = self
-                .aws_kms_service
-                .sign_payload_evm(&payload, PayloadType::Transaction)
-                .await?;
+            let signed_bytes = self.aws_kms_service.sign_payload_evm(&payload).await?;
 
             // Ensure we have the right signature length
             if signed_bytes.len() != 65 {
@@ -99,10 +103,7 @@ impl<T: AwsKmsServiceTrait> Signer for AwsKmsSigner<T> {
             // Prepare transaction for signing
             let payload = unsigned_tx.encoded_for_signing();
 
-            let signed_bytes = self
-                .aws_kms_service
-                .sign_payload_evm(&payload, PayloadType::Transaction)
-                .await?;
+            let signed_bytes = self.aws_kms_service.sign_payload_evm(&payload).await?;
 
             // Ensure we have the right signature length
             if signed_bytes.len() != 65 {
@@ -134,11 +135,11 @@ impl<T: AwsKmsServiceTrait> Signer for AwsKmsSigner<T> {
 #[async_trait]
 impl<T: AwsKmsServiceTrait> DataSignerTrait for AwsKmsSigner<T> {
     async fn sign_data(&self, request: SignDataRequest) -> Result<SignDataResponse, SignerError> {
-        let message_bytes = request.message.as_bytes();
+        let eip191_message = eip191_message(&request.message);
 
         let signature_bytes = self
             .aws_kms_service
-            .sign_payload_evm(message_bytes, PayloadType::Message)
+            .sign_payload_evm(&eip191_message)
             .await?;
 
         // Ensure we have the right signature length
