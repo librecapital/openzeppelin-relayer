@@ -8,6 +8,7 @@ import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models
 import { Configuration } from '@openzeppelin/relayer-sdk/src/configuration.ts';
 import { test, expect, describe } from 'bun:test';
 import type { AxiosResponse } from 'axios';
+import { EvmRpcRequestOneOfMethodEnum, type EvmRpcRequest, type JsonRpcRequestNetworkRpcRequest, type JsonRpcResponseNetworkRpcResult } from '@openzeppelin/relayer-sdk/src/models';
 
 const config = new Configuration({
   basePath: 'http://localhost:8080',
@@ -174,12 +175,32 @@ describe('RelayersApi Tests', () => {
         .sendTransaction(relayer_id, tx_request) as AxiosResponse<ApiResponseVecTransactionResponse>;
 
       expect(status).toBe(200);
-      console.log('listTransactions:', data);
+      console.log('sendTransaction:', data);
     }
     catch (e) {
       e.message
     }
   });
+
+  test('rpc works', async () => {
+    const rpc_request: JsonRpcRequestNetworkRpcRequest = {
+      jsonrpc: '2.0',
+      id: 1,
+      params: '',
+      method: EvmRpcRequestOneOfMethodEnum.GENERIC_RPC_REQUEST
+    };
+    try {
+      const { status, data } = await relayersApi
+        .rpc(relayer_id, rpc_request) as AxiosResponse<JsonRpcResponseNetworkRpcResult>;
+
+      expect(status).toBe(200);
+      console.log('rpc response:', data);
+    }
+    catch (e) {
+      e.message
+    }
+  });
+
 
 });
 
