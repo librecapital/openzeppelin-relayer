@@ -13,10 +13,10 @@ use crate::{
         Address, EvmTransactionDataSignature, EvmTransactionDataTrait, NetworkTransactionData,
         SignerError,
     },
-    services::{AwsKmsService, AwsKmsServiceTrait, DataSignerTrait, Signer},
+    services::{AwsKmsClient, AwsKmsService, AwsKmsServiceTrait, DataSignerTrait, Signer},
 };
 
-pub type DefaultAwsKmsService = AwsKmsService;
+pub type DefaultAwsKmsService = AwsKmsService<AwsKmsClient>;
 
 pub struct AwsKmsSigner<T = DefaultAwsKmsService>
 where

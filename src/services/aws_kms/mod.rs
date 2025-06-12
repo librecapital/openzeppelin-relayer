@@ -37,7 +37,10 @@ use crate::{
     utils::{derive_ethereum_address_from_der, extract_public_key_from_der},
 };
 
-#[derive(Debug, thiserror::Error, Serialize)]
+#[cfg(test)]
+use mockall::{automock, mock};
+
+#[derive(Clone, Debug, thiserror::Error, Serialize)]
 pub enum AwsKmsError {
     #[error("KMS response parse error: {0}")]
     ParseError(String),
@@ -58,6 +61,7 @@ pub enum AwsKmsError {
 pub type AwsKmsResult<T> = Result<T, AwsKmsError>;
 
 #[async_trait]
+#[cfg_attr(test, automock)]
 pub trait AwsKmsServiceTrait: Send + Sync {
     /// Returns the EVM address derived from the configured public key.
     async fn get_evm_address(&self) -> AwsKmsResult<Address>;
@@ -66,35 +70,50 @@ pub trait AwsKmsServiceTrait: Send + Sync {
     async fn sign_payload_evm(&self, payload: &[u8]) -> AwsKmsResult<Vec<u8>>;
 }
 
-#[derive(Debug, Clone)]
-pub struct AwsKmsService {
-    pub kms_key_id: String,
-    client: Client,
+#[async_trait]
+#[cfg_attr(test, automock)]
+pub trait AwsKmsClientTrait: Send + Sync {
+    /// Fetches the DER-encoded public key from AWS KMS.
+    async fn get_der_public_key<'a, 'b>(&'a self, key_id: &'b str) -> AwsKmsResult<Vec<u8>>;
+    /// Signs a digest using EcdsaSha256 spec. Returns DER-encoded signature
+    async fn sign_digest<'a, 'b>(
+        &'a self,
+        key_id: &'b str,
+        digest: [u8; 32],
+    ) -> AwsKmsResult<Vec<u8>>;
 }
 
-impl AwsKmsService {
-    pub async fn new(config: AwsKmsSignerConfig) -> AwsKmsResult<Self> {
-        let region_provider =
-            RegionProviderChain::first_try(config.region.map(Region::new)).or_default_provider();
-
-        let auth_config = aws_config::defaults(BehaviorVersion::latest())
-            .region(region_provider)
-            .load()
-            .await;
-        let client = Client::new(&auth_config);
-
-        Ok(Self {
-            kms_key_id: config.key_id,
-            client,
-        })
+#[cfg(test)]
+mock! {
+    MockAwsKmsClient { }
+    impl Clone for MockAwsKmsClient {
+        fn clone(&self) -> Self;
     }
 
-    /// Fetches the DER-encoded public key from AWS KMS.
-    pub async fn get_der_pk(&self) -> AwsKmsResult<Vec<u8>> {
+    #[async_trait]
+    impl AwsKmsClientTrait for MockAwsKmsClient {
+        async fn get_der_public_key<'a, 'b>(&'a self, key_id: &'b str) -> AwsKmsResult<Vec<u8>>;
+        async fn sign_digest<'a, 'b>(
+            &'a self,
+            key_id: &'b str,
+            digest: [u8; 32],
+        ) -> AwsKmsResult<Vec<u8>>;
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct AwsKmsClient {
+    inner: Client,
+}
+
+#[async_trait]
+impl AwsKmsClientTrait for AwsKmsClient {
+    async fn get_der_public_key<'a, 'b>(&'a self, key_id: &'b str) -> AwsKmsResult<Vec<u8>> {
         let get_output = self
-            .client
+            .inner
             .get_public_key()
-            .key_id(&self.kms_key_id)
+            .key_id(key_id)
             .send()
             .await
             .map_err(|e| AwsKmsError::GetError(e.to_string()))?;
@@ -109,6 +128,72 @@ impl AwsKmsService {
         Ok(der_pk_blob)
     }
 
+    async fn sign_digest<'a, 'b>(
+        &'a self,
+        key_id: &'b str,
+        digest: [u8; 32],
+    ) -> AwsKmsResult<Vec<u8>> {
+        // Sign the digest with the AWS KMS
+        let sign_result = self
+            .inner
+            .sign()
+            .key_id(key_id)
+            .signing_algorithm(SigningAlgorithmSpec::EcdsaSha256)
+            .message_type(MessageType::Digest)
+            .message(Blob::new(digest))
+            .send()
+            .await;
+
+        // Process the result, extract DER signature
+        let der_signature = sign_result
+            .map_err(|e| AwsKmsError::PermissionError(e.to_string()))?
+            .signature
+            .ok_or(AwsKmsError::SignError(
+                "Signature not found in response".to_string(),
+            ))?
+            .into_inner();
+
+        Ok(der_signature)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AwsKmsService<T: AwsKmsClientTrait + Clone = AwsKmsClient> {
+    pub kms_key_id: String,
+    client: T,
+}
+
+impl AwsKmsService<AwsKmsClient> {
+    pub async fn new(config: AwsKmsSignerConfig) -> AwsKmsResult<Self> {
+        let region_provider =
+            RegionProviderChain::first_try(config.region.map(Region::new)).or_default_provider();
+
+        let auth_config = aws_config::defaults(BehaviorVersion::latest())
+            .region(region_provider)
+            .load()
+            .await;
+        let client = AwsKmsClient {
+            inner: Client::new(&auth_config),
+        };
+
+        Ok(Self {
+            kms_key_id: config.key_id,
+            client,
+        })
+    }
+}
+
+#[cfg(test)]
+impl<T: AwsKmsClientTrait + Clone> AwsKmsService<T> {
+    pub fn new_for_testing(client: T, config: AwsKmsSignerConfig) -> Self {
+        Self {
+            client,
+            kms_key_id: config.key_id,
+        }
+    }
+}
+
+impl<T: AwsKmsClientTrait + Clone> AwsKmsService<T> {
     fn recover_public_key(pk: &[u8], sig: &Signature, bytes: &[u8]) -> AwsKmsResult<u8> {
         let mut hasher = Keccak256::new();
         hasher.update(bytes);
@@ -122,7 +207,7 @@ impl AwsKmsService {
                 .as_bytes()
                 .to_vec();
 
-            if recovered_key == pk {
+            if recovered_key[1..] == pk[..] {
                 return Ok(v);
             }
         }
@@ -140,30 +225,14 @@ impl AwsKmsService {
         let digest = keccak256(bytes).0;
 
         // Sign the digest with the AWS KMS
-        let sign_result = self
-            .client
-            .sign()
-            .key_id(&self.kms_key_id)
-            .signing_algorithm(SigningAlgorithmSpec::EcdsaSha256)
-            .message_type(MessageType::Digest)
-            .message(Blob::new(digest))
-            .send()
-            .await;
-
         // Process the result, extract DER signature
-        let der_signature = sign_result
-            .map_err(|e| AwsKmsError::PermissionError(e.to_string()))?
-            .signature
-            .ok_or(AwsKmsError::SignError(
-                "Signature not found in response".to_string(),
-            ))?
-            .into_inner();
+        let der_signature = self.client.sign_digest(&self.kms_key_id, digest).await?;
 
         // Parse DER into Secp256k1 format
         let rs = k256::ecdsa::Signature::from_der(&der_signature)
             .map_err(|e| AwsKmsError::ParseError(e.to_string()))?;
 
-        let der_pk = self.get_der_pk().await?;
+        let der_pk = self.client.get_der_public_key(&self.kms_key_id).await?;
 
         // Extract public key from AWS KMS and convert it to an uncompressed 64 pk
         let pk = extract_public_key_from_der(&der_pk)
@@ -181,9 +250,9 @@ impl AwsKmsService {
 }
 
 #[async_trait]
-impl AwsKmsServiceTrait for AwsKmsService {
+impl<T: AwsKmsClientTrait + Clone> AwsKmsServiceTrait for AwsKmsService<T> {
     async fn get_evm_address(&self) -> AwsKmsResult<Address> {
-        let der = self.get_der_pk().await?;
+        let der = self.client.get_der_public_key(&self.kms_key_id).await?;
         let eth_address = derive_ethereum_address_from_der(&der)
             .map_err(|e| AwsKmsError::ParseError(e.to_string()))?;
         Ok(Address::Evm(eth_address))
@@ -196,23 +265,69 @@ impl AwsKmsServiceTrait for AwsKmsService {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::utils::eip191_message;
-    use k256::{ecdsa::SigningKey, elliptic_curve::rand_core::OsRng};
-
     use super::*;
+
+    use alloy::primitives::utils::eip191_message;
+    use k256::{
+        ecdsa::SigningKey,
+        elliptic_curve::rand_core::OsRng,
+        pkcs8::{der::Encode, EncodePublicKey},
+    };
+    use mockall::predicate::{eq, ne};
+
+    fn setup_mock_kms_service() -> (MockMockAwsKmsClient, SigningKey) {
+        let mut client = MockMockAwsKmsClient::new();
+        let signing_key = SigningKey::random(&mut OsRng);
+        let s = signing_key
+            .verifying_key()
+            .to_public_key_der()
+            .unwrap()
+            .to_der()
+            .unwrap();
+
+        client
+            .expect_get_der_public_key()
+            .with(eq("test-key-id"))
+            .return_const(Ok(s));
+        client
+            .expect_get_der_public_key()
+            .with(ne("test-key-id"))
+            .return_const(Err(AwsKmsError::GetError("Key does not exist".to_string())));
+
+        client
+            .expect_sign_digest()
+            .withf(|key_id, _| key_id.ne("test-key-id"))
+            .return_const(Err(AwsKmsError::SignError(
+                "Key does not exist".to_string(),
+            )));
+
+        let key = signing_key.clone();
+        client
+            .expect_sign_digest()
+            .withf(|key_id, _| key_id.eq("test-key-id"))
+            .returning(move |_, digest| {
+                let (signature, _) = signing_key
+                    .sign_prehash_recoverable(&digest)
+                    .map_err(|e| AwsKmsError::SignError(e.to_string()))?;
+                let der_signature = signature.to_der().as_bytes().to_vec();
+                Ok(der_signature)
+            });
+
+        client.expect_clone().return_once(MockMockAwsKmsClient::new);
+
+        (client, key)
+    }
 
     #[test]
     fn test_recover_public_key() {
         // Generate keypair
         let signing_key = SigningKey::random(&mut OsRng);
         let verifying_key = signing_key.verifying_key();
-        let public_key_bytes = verifying_key.to_encoded_point(false).as_bytes().to_vec();
-
-        // Create a message
-        let message = b"example message to sign";
+        let public_key_bytes = &verifying_key.to_encoded_point(false).as_bytes().to_vec()[1..];
+        println!("Pub key length: {}", public_key_bytes.len());
 
         // EIP-191 style of a message
-        let eip_message = eip191_message(message);
+        let eip_message = eip191_message(b"Hello World");
 
         // Ethereum-style hash: keccak256 of message
         let mut hasher = Keccak256::new();
@@ -222,8 +337,11 @@ mod tests {
         let (signature, rec_id) = signing_key.sign_digest_recoverable(hasher).unwrap();
 
         // Try to recover the public key
-        let recovery_result =
-            AwsKmsService::recover_public_key(&public_key_bytes, &signature, &eip_message);
+        let recovery_result = AwsKmsService::<AwsKmsClient>::recover_public_key(
+            public_key_bytes,
+            &signature,
+            &eip_message,
+        );
 
         // Check that a valid recovery ID (0 or 1) is returned
         match recovery_result {
@@ -232,6 +350,83 @@ mod tests {
                 assert_eq!(rec_id.to_byte(), v, "Recovery ID should match")
             }
             Err(e) => panic!("Failed to recover public key: {:?}", e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_public_key() {
+        let (mock_client, key) = setup_mock_kms_service();
+        let kms = AwsKmsService::new_for_testing(
+            mock_client,
+            AwsKmsSignerConfig {
+                region: Some("us-east-1".to_string()),
+                key_id: "test-key-id".to_string(),
+            },
+        );
+
+        let result = kms.get_evm_address().await;
+        assert!(result.is_ok());
+        if let Ok(Address::Evm(evm_address)) = result {
+            let expected_address = derive_ethereum_address_from_der(
+                key.verifying_key().to_public_key_der().unwrap().as_bytes(),
+            )
+            .unwrap();
+            assert_eq!(expected_address, evm_address);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_public_key_fail() {
+        let (mock_client, _) = setup_mock_kms_service();
+        let kms = AwsKmsService::new_for_testing(
+            mock_client,
+            AwsKmsSignerConfig {
+                region: Some("us-east-1".to_string()),
+                key_id: "invalid-key-id".to_string(),
+            },
+        );
+
+        let result = kms.get_evm_address().await;
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err, AwsKmsError::GetError(_)))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sign_digest() {
+        let (mock_client, _) = setup_mock_kms_service();
+        let kms = AwsKmsService::new_for_testing(
+            mock_client,
+            AwsKmsSignerConfig {
+                region: Some("us-east-1".to_string()),
+                key_id: "test-key-id".to_string(),
+            },
+        );
+
+        let message_eip = eip191_message(b"Hello World!");
+        let result = kms.sign_payload_evm(&message_eip).await;
+
+        // We just assert for Ok, since the pubkey recovery indicates the validity of signature
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_sign_digest_fail() {
+        let (mock_client, _) = setup_mock_kms_service();
+        let kms = AwsKmsService::new_for_testing(
+            mock_client,
+            AwsKmsSignerConfig {
+                region: Some("us-east-1".to_string()),
+                key_id: "invalid-key-id".to_string(),
+            },
+        );
+
+        let message_eip = eip191_message(b"Hello World!");
+        let result = kms.sign_payload_evm(&message_eip).await;
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err, AwsKmsError::SignError(_)))
         }
     }
 }
