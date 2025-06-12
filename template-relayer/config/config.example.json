@@ -23,18 +23,6 @@
       "policies": {
         "min_balance": 0
       }
-    },
-    {
-      "id": "sei-testnet",
-      "name": "Sei testnet",
-      "network": "sei-testnet",
-      "paused": false,
-      "notification_id": "notification-example",
-      "signer_id": "local-signer",
-      "network_type": "evm",
-      "policies": {
-        "min_balance": 0
-      }
     }
   ],
   "notifications": [
