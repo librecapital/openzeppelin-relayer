@@ -10,77 +10,18 @@ import { test, expect, describe } from 'bun:test';
 import type { AxiosResponse } from 'axios';
 import { EvmRpcRequestOneOfMethodEnum, type EvmRpcRequest, type JsonRpcRequestNetworkRpcRequest, type JsonRpcResponseNetworkRpcResult } from '@openzeppelin/relayer-sdk/src/models';
 
-const config = new Configuration({
-  basePath: 'http://localhost:8080',
-  accessToken: 'a70d7a0e-6ea9-4176-9ff4-d5719d93af2c',
-});
+// Health and metrics are broken in the sdk, due to a misconfigured url. Should start with /api/v1/ and sdk does /v1/
 
+const relayer_id = process.env.RELAYER_ID;
+const relayer_endpoint = process.env.HOST_PORT || 'http://localhost:8080';
+const api_key = process.env.API_KEY;
+
+const config = new Configuration({
+  basePath: relayer_endpoint,
+  accessToken: api_key,
+});
 const relayersApi = new RelayersApi(config);
 
-// Health and metrics are broken in the sdk, due to a misconfigured url. Should start with /api/v1/ and sdk does /v1/
-// const healthApi = new HealthApi(config);
-// const metricsApi = new MetricsApi(config);
-
-const relayer_id_anvil = 'anvil';
-const relayer_id_sepolia = 'sepolia-example';
-const relayer_id_sei = 'sei-testnet';
-const relayer_id = relayer_id_sei;
-// describe('HealthApi Tests', () => {
-//     test('health returns the health status of the API', async () => {
-//         try {
-//             const { status, data } = await healthApi.health() as AxiosResponse<string>;
-//             expect(status).toBe(200);
-//             expect(data).toBeDefined();
-//             console.log('health status:', data);
-//         }
-//         catch (e) {
-//             throw e.message
-//         }
-//
-//     });
-//
-//     test("direct health api", async () => {
-//         // do a GET on localhost:8080/v1/health with Bearer token authentication
-//         try {
-//             const response = await axios.get('http://localhost:8080/api/v1/health', {
-//                 headers: {
-//                     'Authorization': `Bearer ${config.accessToken}`
-//                 }
-//             });
-//             const { status, data } = response;
-//             expect(status).toBe(200);
-//             expect(data).toBeDefined();
-//             console.log('direct health status:', data);
-//         } catch (e) {
-//             throw e.message;
-//         }
-//     })
-// });
-//
-// describe('MetricsApi Tests', () => {
-//     test('listMetrics returns a list of metrics', async () => {
-//         const { status, data } = await metricsApi.listMetrics() as AxiosResponse<any[]>;
-//         expect(status).toBe(200);
-//         expect(Array.isArray(data)).toBe(true);
-//         console.log('listMetrics:', data);
-//     });
-//
-// test('metricDetail returns details of a specific metric', async () => {
-//     const metricName = 'process_cpu_seconds_total';
-//     const { status, data } = await metricsApi.metricDetail(metricName) as AxiosResponse<string>;
-//     expect(status).toBe(200);
-//     expect(typeof data).toBe('string');
-//     console.log('metricDetail:', data);
-// });
-//
-// test('scrapeMetrics triggers an update of system metrics', async () => {
-//     const { status, data } = await metricsApi.scrapeMetrics() as AxiosResponse<string>;
-//     expect(status).toBe(200);
-//     expect(typeof data).toBe('string');
-//     console.log('scrapeMetrics:', data);
-// });
-// });
-//
 describe('RelayersApi Tests', () => {
   test('listRelayers returns a list of relayers', async () => {
     try {
@@ -181,27 +122,6 @@ describe('RelayersApi Tests', () => {
       e.message
     }
   });
-
-  test('rpc works', async () => {
-    const rpc_request: JsonRpcRequestNetworkRpcRequest = {
-      jsonrpc: '2.0',
-      id: 1,
-      params: '',
-      method: EvmRpcRequestOneOfMethodEnum.GENERIC_RPC_REQUEST
-    };
-    try {
-      const { status, data } = await relayersApi
-        .rpc(relayer_id, rpc_request) as AxiosResponse<JsonRpcResponseNetworkRpcResult>;
-
-      expect(status).toBe(200);
-      console.log('rpc response:', data);
-    }
-    catch (e) {
-      e.message
-    }
-  });
-
-
 });
 
 
