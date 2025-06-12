@@ -18,11 +18,7 @@ target/
 #.idea/
 .DS_Store
 
-config.json
-local-signer.json
-
 !examples/**/*.json
-
 
 # docs
 docs/build/
@@ -42,4 +38,3 @@ node_modules
 **/local-signer.json
 
 openapi.json
-sei-addition/sdk-tests/.gitignore

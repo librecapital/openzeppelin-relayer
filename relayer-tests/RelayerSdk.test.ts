@@ -9,12 +9,15 @@ import { Configuration } from '@openzeppelin/relayer-sdk/src/configuration.ts';
 import { test, expect, describe } from 'bun:test';
 import type { AxiosResponse } from 'axios';
 import { EvmRpcRequestOneOfMethodEnum, type EvmRpcRequest, type JsonRpcRequestNetworkRpcRequest, type JsonRpcResponseNetworkRpcResult } from '@openzeppelin/relayer-sdk/src/models';
+import { fail } from "node:assert/strict";
 
 // Health and metrics are broken in the sdk, due to a misconfigured url. Should start with /api/v1/ and sdk does /v1/
 
-const relayer_id = process.env.RELAYER_ID;
+const relayer_id = process.env.RELAYER_ID ?? fail("RELAYER_ID env var required");
 const relayer_endpoint = process.env.HOST_PORT || 'http://localhost:8080';
-const api_key = process.env.API_KEY;
+const api_key = process.env.API_KEY ?? fail("RELAYER_ID env var required");
+
+// RELAYER_ID=sei-testnet,API_KEY=8aa82468-3c3d-47db-aa05-7ef176d78417 bun test
 
 const config = new Configuration({
   basePath: relayer_endpoint,
@@ -37,12 +40,13 @@ describe('RelayersApi Tests', () => {
       console.log("listRelayers", relayers);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
 
   });
 
   test('getRelayer returns details of a specific relayer', async () => {
+    console.log('getRelayer', relayer_id!);
     try {
       const { status, data } = await relayersApi
         .getRelayer(relayer_id) as AxiosResponse<ApiResponseRelayerResponse>;
@@ -56,7 +60,7 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayer:', relayerData);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
   });
 
@@ -72,7 +76,7 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayerBalance:', relayerBalance);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
 
   });
@@ -88,7 +92,7 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayerStatus:', relayerStatus);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
   });
 
@@ -101,7 +105,7 @@ describe('RelayersApi Tests', () => {
       console.log('listTransactions:', data);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
   });
 
@@ -119,7 +123,7 @@ describe('RelayersApi Tests', () => {
       console.log('sendTransaction:', data);
     }
     catch (e) {
-      e.message
+      throw e.message
     }
   });
 });
