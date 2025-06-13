@@ -6,7 +6,7 @@
       "network": "sei-testnet",
       "paused": false,
       "notification_id": "notification-example",
-      "signer_id": "example-signer",
+      "signer_id": "test-signer",
       "network_type": "evm",
       "policies": {
         "min_balance": 0
@@ -26,10 +26,10 @@
   ],
   "signers": [
     {
-      "id": "example-signer",
+      "id": "test-signer",
       "type": "local",
       "config": {
-        "path": "config/keys/example-signer.json",
+        "path": "config/keys/test-signer.json",
         "passphrase": {
           "type": "env",
           "value": "KEYSTORE_PASSPHRASE"

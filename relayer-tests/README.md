@@ -15,51 +15,37 @@ bun install
 To run the tests:
 
 ```bash
-bun test
+RELAYER_ID={your id} API_KEY={your key} HOST_PORT={http://localhost:8080} bun test
 ```
 
-This will execute all the tests in the index.ts file using Bun's built-in test runner.
-
-Alternatively, you can run the file directly:
-
-```bash
-bun run index.ts
 ```
 
 ## Test Coverage
+As of now, we test the following methods:
 
-The tests cover all functions from the OpenZeppelin Relayer SDK specification:
+- `listRelayers`: shows all the relayers we have in the config. We should see our new chain here
 
-1. RelayersApi:
-   - listRelayers
-   - getRelayer
-   - getRelayerBalance
-   - getRelayerStatus
-   - listTransactions
-   - sendTransaction
-   - getTransactionById
-   - getTransactionByNonce
-   - replaceTransaction
-   - cancelTransaction
-   - deletePendingTransactions
-   - sign
-   - signTypedData
-   - rpc
-   - updateRelayer
+- `getRelayer`: shows a specific relayer’s info. We should see the info of our new chain.
+- `getRelayerBalance`: shows the native token balance of the relayer account. We should first fund it and check if we see the balance there.
+- `sendTransaction`: we send an empty “ping”-style EIP-1559 transaction that sends 0 ETH to the address 0xc834…db116, consuming only the intrinsic 21 000 gas for a plain transfer.
+- `getRelayerStatus`: shows status of relayer
+- `updateRelayer`: pause and resume relayer
+- `listTransactions`: shows the history of transactions and if they are pending, completed,
 
-2. HealthApi:
-   - health
+Missing tests, we can add as needed:
 
-3. MetricsApi:
-   - listMetrics
-   - metricDetail
-   - scrapeMetrics
+- `rpc`: NOT POSSIBLE for EVM as of now
+- `getTransactionById`: get a transaction submitted to the relayer by id
+- `getTransactionByNonce`: get a transaction submitted to the relayer by id
+- `cancelTransaction`: cancel in-flight transaction
+- `deletePendingTransactions`
+- `replaceTransaction`
+- `sign`: sign data with the relayer private key
+- `signTypedData`: sign typed data with the relayer private key
 
 ## Prerequisites
 
 Before running the tests, make sure:
-1. The relayer service is running (see GUIDE.md)
-2. A local Ethereum chain is running (if testing with Anvil)
-3. The relayer has been funded (if testing transaction-related functions)
-
-This project was created using `bun init` in bun v1.2.2. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+1. The relayer service is running at the url defined by `HOST_PORT` (default is `http://localhost:8080`)
+3. The relayer has been funded with some tokens
+```
