@@ -15,10 +15,20 @@
 //!
 //! ```text
 //! AwsKmsService (implements AwsKmsServiceTrait)
-//!   ├── Authentication (credential providers)
-//!   ├── Public Key Retrieval
-//!   └── Message Signing
+//!   ├── Authentication (via AwsKmsClient)
+//!   ├── Public Key Retrieval (via AwsKmsClient)
+//!   └── Message Signing (via AwsKmsClient)
 //! ```
+//! is based on
+//! ```text
+//! AwsKmsClient (implements AwsKmsClientTrait)
+//!   ├── Authentication (via shared credentials)
+//!   ├── Public Key Retrieval in DER Encoding
+//!   └── Message Digest Signing in DER Encoding
+//! ```
+//! `AwsKmsClientTrait` is mocked with `mockall` for unit testing
+//! and injected into `AwsKmsService`
+//!
 
 use alloy::primitives::keccak256;
 use async_trait::async_trait;
@@ -85,13 +95,13 @@ pub trait AwsKmsClientTrait: Send + Sync {
 
 #[cfg(test)]
 mock! {
-    MockAwsKmsClient { }
-    impl Clone for MockAwsKmsClient {
+    pub AwsKmsClient { }
+    impl Clone for AwsKmsClient {
         fn clone(&self) -> Self;
     }
 
     #[async_trait]
-    impl AwsKmsClientTrait for MockAwsKmsClient {
+    impl AwsKmsClientTrait for AwsKmsClient {
         async fn get_der_public_key<'a, 'b>(&'a self, key_id: &'b str) -> AwsKmsResult<Vec<u8>>;
         async fn sign_digest<'a, 'b>(
             &'a self,
@@ -241,9 +251,12 @@ impl<T: AwsKmsClientTrait + Clone> AwsKmsService<T> {
         // Extract v value from the public key recovery
         let v = Self::recover_public_key(&pk, &rs, bytes)?;
 
+        // Adjust v value for Ethereum legacy transaction.
+        let eth_v = 27 + v;
+
         // Append `v` to a signature bytes
         let mut sig_bytes = rs.to_vec();
-        sig_bytes.push(v);
+        sig_bytes.push(eth_v);
 
         Ok(sig_bytes)
     }
@@ -264,7 +277,7 @@ impl<T: AwsKmsClientTrait + Clone> AwsKmsServiceTrait for AwsKmsService<T> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     use alloy::primitives::utils::eip191_message;
@@ -275,8 +288,8 @@ mod tests {
     };
     use mockall::predicate::{eq, ne};
 
-    fn setup_mock_kms_service() -> (MockMockAwsKmsClient, SigningKey) {
-        let mut client = MockMockAwsKmsClient::new();
+    pub fn setup_mock_kms_client() -> (MockAwsKmsClient, SigningKey) {
+        let mut client = MockAwsKmsClient::new();
         let signing_key = SigningKey::random(&mut OsRng);
         let s = signing_key
             .verifying_key()
@@ -313,7 +326,7 @@ mod tests {
                 Ok(der_signature)
             });
 
-        client.expect_clone().return_once(MockMockAwsKmsClient::new);
+        client.expect_clone().return_once(MockAwsKmsClient::new);
 
         (client, key)
     }
@@ -355,7 +368,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_public_key() {
-        let (mock_client, key) = setup_mock_kms_service();
+        let (mock_client, key) = setup_mock_kms_client();
         let kms = AwsKmsService::new_for_testing(
             mock_client,
             AwsKmsSignerConfig {
@@ -377,7 +390,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_public_key_fail() {
-        let (mock_client, _) = setup_mock_kms_service();
+        let (mock_client, _) = setup_mock_kms_client();
         let kms = AwsKmsService::new_for_testing(
             mock_client,
             AwsKmsSignerConfig {
@@ -395,7 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sign_digest() {
-        let (mock_client, _) = setup_mock_kms_service();
+        let (mock_client, _) = setup_mock_kms_client();
         let kms = AwsKmsService::new_for_testing(
             mock_client,
             AwsKmsSignerConfig {
@@ -413,7 +426,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sign_digest_fail() {
-        let (mock_client, _) = setup_mock_kms_service();
+        let (mock_client, _) = setup_mock_kms_client();
         let kms = AwsKmsService::new_for_testing(
             mock_client,
             AwsKmsSignerConfig {
