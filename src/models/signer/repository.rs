@@ -15,6 +15,7 @@ where
 pub enum SignerType {
     Test,
     Local,
+    #[serde(rename = "aws_kms")]
     AwsKms,
     Vault,
     Turnkey,
@@ -153,7 +154,7 @@ mod tests {
     fn test_signer_type_serialization() {
         assert_eq!(to_string(&SignerType::Test).unwrap(), "\"test\"");
         assert_eq!(to_string(&SignerType::Local).unwrap(), "\"local\"");
-        assert_eq!(to_string(&SignerType::AwsKms).unwrap(), "\"awskms\"");
+        assert_eq!(to_string(&SignerType::AwsKms).unwrap(), "\"aws_kms\"");
         assert_eq!(to_string(&SignerType::Vault).unwrap(), "\"vault\"");
         assert_eq!(to_string(&SignerType::Turnkey).unwrap(), "\"turnkey\"");
     }
@@ -169,7 +170,7 @@ mod tests {
             SignerType::Local
         );
         assert_eq!(
-            from_str::<SignerType>("\"awskms\"").unwrap(),
+            from_str::<SignerType>("\"aws_kms\"").unwrap(),
             SignerType::AwsKms
         );
         assert_eq!(

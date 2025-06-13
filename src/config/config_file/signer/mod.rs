@@ -82,6 +82,7 @@ pub struct TestSignerFileConfig {}
 pub enum SignerFileConfigEnum {
     Test(TestSignerFileConfig),
     Local(LocalSignerFileConfig),
+    #[serde(rename = "aws_kms")]
     AwsKms(AwsKmsSignerFileConfig),
     Vault(VaultSignerFileConfig),
     #[serde(rename = "vault_cloud")]
@@ -677,7 +678,7 @@ mod tests {
         assert!(matches!(parsed, SignerFileConfigEnum::VaultTransit(_)));
 
         let aws_kms_config = json!({
-            "type": "awskms",
+            "type": "aws_kms",
             "config": {
                 "region": "us-east-1",
                 "key_id": "test-key-id"
