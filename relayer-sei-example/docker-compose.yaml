@@ -43,7 +43,7 @@ services:
       - no-new-privileges
     volumes:
       - redis_data:/data
-    command: [redis-server, --appendonly, yes, --save, '60', '1']
+    command: [redis-server, --appendonly, yes, --save, "60", "1"]
     networks:
       - relayer-network
       - metrics-network
@@ -68,7 +68,8 @@ services:
     image: prom/prometheus:v3.1.0
     security_opt:
       - no-new-privileges
-    command: --log.level=warn --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+    command:
+      --log.level=warn --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
       --storage.tsdb.retention.time=30d --web.console.libraries=/usr/share/prometheus/console_libraries
       --web.console.templates=/usr/share/prometheus/consoles
     ports:

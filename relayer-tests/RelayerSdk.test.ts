@@ -1,14 +1,13 @@
-import { RelayersApi, HealthApi, MetricsApi } from '@openzeppelin/relayer-sdk/src/api.ts';
-import { type ApiResponseVecRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-relayer-response.ts';
-import { type ApiResponseRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-relayer-response.ts'
-import { type ApiResponseBalanceResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-balance-response.ts';
-import { type ApiResponseBool } from '@openzeppelin/relayer-sdk/src/models/api-response-bool.ts'
-import { type ApiResponseVecTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-transaction-response.ts'
-import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-request.ts';
+import { RelayersApi } from '@openzeppelin/relayer-sdk/src/api.ts';
 import { Configuration } from '@openzeppelin/relayer-sdk/src/configuration.ts';
-import { test, expect, describe } from 'bun:test';
+import { type ApiResponseBalanceResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-balance-response.ts';
+import { type ApiResponseBool } from '@openzeppelin/relayer-sdk/src/models/api-response-bool.ts';
+import { type ApiResponseRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-relayer-response.ts';
+import { type ApiResponseVecRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-relayer-response.ts';
+import { type ApiResponseVecTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-transaction-response.ts';
+import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-request.ts';
 import type { AxiosResponse } from 'axios';
-import { EvmRpcRequestOneOfMethodEnum, type EvmRpcRequest, type JsonRpcRequestNetworkRpcRequest, type JsonRpcResponseNetworkRpcResult } from '@openzeppelin/relayer-sdk/src/models';
+import { describe, expect, test } from 'bun:test';
 import { fail } from "node:assert/strict";
 
 // Health and metrics are broken in the sdk, due to a misconfigured url. Should start with /api/v1/ and sdk does /v1/
@@ -16,8 +15,6 @@ import { fail } from "node:assert/strict";
 const relayer_id = process.env.RELAYER_ID ?? fail("RELAYER_ID env var required");
 const relayer_endpoint = process.env.HOST_PORT || 'http://localhost:8080';
 const api_key = process.env.API_KEY ?? fail("RELAYER_ID env var required");
-
-// RELAYER_ID=sei-testnet,API_KEY=8aa82468-3c3d-47db-aa05-7ef176d78417 bun test
 
 const config = new Configuration({
   basePath: relayer_endpoint,
@@ -40,7 +37,10 @@ describe('RelayersApi Tests', () => {
       console.log("listRelayers", relayers);
     }
     catch (e) {
-      throw e.message
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
 
   });
@@ -60,7 +60,10 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayer:', relayerData);
     }
     catch (e) {
-      throw e.message
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
   });
 
@@ -76,7 +79,10 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayerBalance:', relayerBalance);
     }
     catch (e) {
-      throw e.message
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
 
   });
@@ -92,7 +98,10 @@ describe('RelayersApi Tests', () => {
       console.log('getRelayerStatus:', relayerStatus);
     }
     catch (e) {
-      throw e.message
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
   });
 
@@ -105,15 +114,21 @@ describe('RelayersApi Tests', () => {
       console.log('listTransactions:', data);
     }
     catch (e) {
-      throw e.message
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
   });
 
   test('sendTransaction works', async () => {
     const tx_request: EvmTransactionRequest = {
-      gas_limit: 100000,
-      value: 10000,
-      to: '0xbeef'
+      to: '0xc834dcdc9a074dbbadcc71584789ae4b463db116',
+      value: 420,
+      data: '0xbeef',
+      gas_limit: 21000,
+      max_fee_per_gas: 1000000000,
+      max_priority_fee_per_gas: 1000000000,
     };
     try {
       const { status, data } = await relayersApi
@@ -123,7 +138,11 @@ describe('RelayersApi Tests', () => {
       console.log('sendTransaction:', data);
     }
     catch (e) {
-      throw e.message
+
+      if (e instanceof Error) {
+        throw new Error(e.message)
+      }
+      throw e
     }
   });
 });
