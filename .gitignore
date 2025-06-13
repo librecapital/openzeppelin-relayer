@@ -18,6 +18,10 @@ target/
 #.idea/
 .DS_Store
 
+config.json
+!relayer-sei-example/config.json
+local-signer.json
+
 !examples/**/*.json
 
 # docs
