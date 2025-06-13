@@ -19,8 +19,6 @@ services:
       WEBHOOK_SIGNING_KEY: ${WEBHOOK_SIGNING_KEY}
       API_KEY: ${API_KEY}
       KEYSTORE_PASSPHRASE: ${KEYSTORE_PASSPHRASE}
-      LOG_MODE: file
-      LOG_LEVEL: trace
     security_opt:
       - no-new-privileges
     networks:
@@ -28,10 +26,9 @@ services:
       - metrics-network
     volumes:
       - ./config:/app/config/
-      - ${LOGS_DATA_DIR:-./logs}:/app/logs
     depends_on:
       - redis
-    restart: on-failure:1
+    restart: on-failure:5
 
 
   redis:

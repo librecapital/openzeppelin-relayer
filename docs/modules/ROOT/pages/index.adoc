@@ -1069,7 +1069,7 @@ Here are examples for each supported network type:
       "explorer_urls": ["https://etherscan.io"]
     },
     {
-      "type": "evm", 
+      "type": "evm",
       "network": "polygon-mainnet",
       "chain_id": 137,
       "required_confirmations": 30,
