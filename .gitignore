@@ -32,7 +32,6 @@ logs/
 
 # env
 .env
-!/examples/relayer-sei-example/.env
 # Ignore node_modules
 node_modules
 .qodo

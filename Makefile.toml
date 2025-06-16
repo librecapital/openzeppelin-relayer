@@ -1,20 +1,72 @@
+[env]
+RELAYER_FOLDER = "./examples/relayer-sei-example"
+RELAYER_ID = { script = [
+  "jq -r '.relayers[0].id' ${RELAYER_FOLDER}/config/config.json",
+] }
+RELAYER_ENDPOINT = "http://localhost:8080"
+
 [tasks.rust-antora]
 description = "Build Antora site and copy rust_docs"
 script = [
   "cargo doc --target-dir docs/rust_docs --release --no-deps --quiet --locked",
   "cargo run --example generate_openapi",
   "npx -y @redocly/cli@latest build-docs openapi.json --output docs/api_docs.html",
-  "bash scripts/rust_antora.sh"
+  "bash scripts/rust_antora.sh",
 ]
+
 [tasks.docker-compose-up]
 description = "Run docker compose up according to the user defined settings"
 script = [
   "chmod +x ./scripts/docker_compose.sh",
-  "./scripts/docker_compose.sh up"
+  "./scripts/docker_compose.sh up",
 ]
+
 [tasks.docker-compose-down]
 description = "Run docker compose down according to the user defined settings"
 script = [
   "chmod +x ./scripts/docker_compose.sh",
-  "./scripts/docker_compose.sh down"
+  "./scripts/docker_compose.sh down",
+]
+
+[tasks.start-relayer]
+description = "Start the relayer folder with docker compose"
+env_files = ["${RELAYER_FOLDER}/.env"]
+script = [
+  "docker compose -f ${RELAYER_FOLDER}/docker-compose.yaml --profile metrics up -d",
+]
+
+[tasks.wait-relayer]
+description = "Wait for the relayer to be ready"
+env_files = ["${RELAYER_FOLDER}/.env"]
+script = '''
+echo "Waiting for relayer to be ready at ${RELAYER_ENDPOINT}/health..."
+for i in {1..30}; do
+  echo "Attempt $i/30..."
+  if curl -sSf -H "Authorization: Bearer ${API_KEY}" ${RELAYER_ENDPOINT}/api/v1/health > /dev/null; then
+    echo "Relayer is ready!"
+    exit 0         # ready
+  fi
+  sleep 1
+done
+echo "server never became ready after 30 attempts" 1>&2
+exit 1
+'''
+
+[tasks.test-relayer]
+env_files = ["${RELAYER_FOLDER}/.env"]
+description = "Run the relayer integration tests against a relayer folder"
+script = ["bun test"]
+dependencies = ["wait-relayer"]
+
+[tasks.run-and-test-relayer]
+run_task = { name = [
+  "start-relayer",
+  "test-relayer",
+], fork = true, cleanup_task = "stop-server" }
+
+# 5. tiny cleanup that kills the server we spawned
+[tasks.stop-server]
+env_files = ["${RELAYER_FOLDER}/.env"]
+script = [
+  "docker compose -f ${RELAYER_FOLDER}/docker-compose.yaml --profile metrics down ",
 ]

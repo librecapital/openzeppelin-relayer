@@ -1,4 +1,4 @@
-# sdk-tests
+# Relayer SDK Integration Tests
 
 This project contains tests for the OpenZeppelin Relayer SDK.
 

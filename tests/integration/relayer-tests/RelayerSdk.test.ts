@@ -6,6 +6,7 @@ import { type ApiResponseRelayerResponse } from '@openzeppelin/relayer-sdk/src/m
 import { type ApiResponseVecRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-relayer-response.ts';
 import { type ApiResponseVecTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-vec-transaction-response.ts';
 import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-request.ts';
+import type { EvmTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-response.ts';
 import type { RelayerUpdateRequest } from '@openzeppelin/relayer-sdk/src/models/relayer-update-request.ts';
 import type { AxiosResponse } from 'axios';
 import { describe, expect, test } from 'bun:test';
@@ -15,7 +16,7 @@ import { fail } from "node:assert/strict";
 
 const relayer_id = process.env.RELAYER_ID ?? fail("RELAYER_ID env var required");
 const relayer_endpoint = process.env.RELAYER_ENDPOINT || 'http://localhost:8080';
-const api_key = process.env.API_KEY ?? fail("RELAYER_ID env var required");
+const api_key = process.env.API_KEY ?? fail("API_KEY env var required");
 
 const config = new Configuration({
   basePath: relayer_endpoint,
@@ -25,6 +26,7 @@ const relayersApi = new RelayersApi(config);
 
 describe('RelayersApi Tests', () => {
   test('listRelayers returns a list of relayers', async () => {
+    console.log("API_KEY, ", api_key);
     try {
       const { status, data } = await relayersApi
         .listRelayers() as AxiosResponse<ApiResponseVecRelayerResponse>;
@@ -112,8 +114,8 @@ describe('RelayersApi Tests', () => {
       value: 0,
       data: '0x',
       gas_limit: 21000,
-      max_fee_per_gas: 1000000000,
-      max_priority_fee_per_gas: 1000000000,
+      max_fee_per_gas: 20000000000,
+      max_priority_fee_per_gas: 2000000000,
     };
     try {
       const { status, data } = await relayersApi
@@ -186,5 +188,57 @@ describe('RelayersApi Tests', () => {
     }
   });
 
+
+  const maxWaitTime = 60000; // 60 seconds
+  test('wait for relayer to confirm transaction', async () => {
+    if (!transactionId) {
+      throw new Error('No transaction ID available from previous test');
+    }
+
+    try {
+      const pollInterval = 2000; // 2 seconds
+      const startTime = Date.now();
+      let transactionConfirmed = false;
+      let lastStatus = '';
+
+      while (Date.now() - startTime < maxWaitTime && !transactionConfirmed) {
+        const { status, data } = await relayersApi
+          .listTransactions(relayer_id) as AxiosResponse<ApiResponseVecTransactionResponse>;
+
+        expect(status).toBe(200);
+
+        const transaction = data.data!.find(tx => tx.id === transactionId) as EvmTransactionResponse;
+        expect(transaction).toBeDefined();
+
+        lastStatus = transaction!.status || 'unknown';
+        console.log(`Transaction ${transactionId} status: ${lastStatus}`);
+
+        if (lastStatus === 'confirmed') {
+          transactionConfirmed = true;
+          expect(transaction!.confirmed_at).toBeDefined();
+          console.log(`Transaction confirmed at: ${transaction!.confirmed_at}`);
+        } else if (lastStatus === 'failed') {
+          throw new Error(`Transaction failed: ${transaction!.status_reason || 'Unknown reason'}`);
+        }
+
+        if (!transactionConfirmed) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+      }
+
+      if (!transactionConfirmed) {
+        throw new Error(`Transaction not confirmed within ${maxWaitTime}ms. Last status: ${lastStatus}`);
+      }
+
+      console.log('Transaction successfully confirmed by relayer');
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(e.message);
+      }
+      throw e;
+    }
+  }, maxWaitTime);
+
 });
+
 

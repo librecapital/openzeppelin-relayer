@@ -78,7 +78,7 @@ services:
       - metrics-network
       - relayer-network
     volumes:
-      - ../cmd/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../../cmd/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     restart: on-failure:5
     profiles:
       - metrics
@@ -92,9 +92,9 @@ services:
       - metrics-network
       - relayer-network
     volumes:
-      - ../cmd/prometheus/grafana.ini:/etc/grafana/grafana.ini
-      - ../cmd/prometheus/datasources:/etc/grafana/provisioning/datasources
-      - ../cmd/prometheus/dashboards:/etc/grafana/provisioning/dashboards
+      - ../../cmd/prometheus/grafana.ini:/etc/grafana/grafana.ini
+      - ../../cmd/prometheus/datasources:/etc/grafana/provisioning/datasources
+      - ../../cmd/prometheus/dashboards:/etc/grafana/provisioning/dashboards
     restart: on-failure:1
     profiles:
       - metrics
