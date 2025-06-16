@@ -18,7 +18,7 @@ target/
 .DS_Store
 
 config.json
-!relayer-sei-example/config.json
+!/examples/relayer-sei-example/config.json
 local-signer.json
 
 !examples/**/*.json
@@ -32,7 +32,7 @@ logs/
 
 # env
 .env
-!relayer-sei-example/.env
+!/examples/relayer-sei-example/.env
 # Ignore node_modules
 node_modules
 .qodo
