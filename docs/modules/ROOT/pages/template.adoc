@@ -1,0 +1,40 @@
+= Template Guide
+:description: Guide for using the template folder to create new relayer configurations
+
+== Overview
+
+The template folder provides a minimal starter configuration for creating new relayer instances without affecting the root-level project files. This approach allows you to:
+
+* Create isolated relayer configurations for different chains or use cases
+* Maintain clean separation between the core relayer codebase and instance-specific configurations
+* Easily deploy self-contained relayer instances using Docker
+
+== Purpose
+
+The template serves as a foundation for setting up new relayer configurations. It includes:
+
+* Basic configuration files and examples
+* Docker Compose setup for containerized deployment
+* Network configuration templates
+* Environment variable examples
+* Key generation utilities
+
+== How to Use
+
+The template folder contains a comprehensive README.md with step-by-step instructions for:
+
+1. Setting up a new relayer instance
+2. Configuring networks and signers
+3. Setting up webhooks and API keys
+4. Running the relayer with Docker Compose
+
+Refer to the `template/README.md` file for detailed setup instructions and configuration examples.
+
+== Future Enhancement
+
+The template is designed to evolve into a self-contained deployment solution that:
+
+* Uses Docker images from a repository instead of building from source
+* Includes its own Prometheus and Grafana monitoring configuration
+* Can be deployed independently with minimal dependencies
+
