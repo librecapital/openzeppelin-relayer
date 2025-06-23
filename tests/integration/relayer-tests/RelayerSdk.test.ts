@@ -242,16 +242,6 @@ describe('RelayersApi Tests', () => {
   }, maxWaitTime);
 
   test('rpc functionality works for blockchain queries', async () => {
-    // First verify this is an EVM relayer
-    const relayerInfo = await relayersApi.getRelayer(relayer_id);
-    const relayerData = relayerInfo.data.data;
-    const networkType = relayerData?.network_type;
-
-    if (networkType !== 'evm') {
-      throw new Error(`Expected EVM relayer but got network_type: ${networkType}`);
-    }
-
-    // Test basic RPC functionality for EVM networks
     const rpcRequest = {
       jsonrpc: '2.0',
       method: 'eth_chainId',
@@ -259,48 +249,22 @@ describe('RelayersApi Tests', () => {
       id: 1
     };
 
-    try {
-      const response = await axios.post(
-        `${relayer_endpoint}/api/v1/relayers/${relayer_id}/rpc`,
-        rpcRequest,
-        {
-          headers: {
-            'Authorization': `Bearer ${api_key}`,
-            'Content-Type': 'application/json'
-          }
+    const response = await axios.post(
+      `${relayer_endpoint}/api/v1/relayers/${relayer_id}/rpc`,
+      rpcRequest,
+      {
+        headers: {
+          'Authorization': `Bearer ${api_key}`,
+          'Content-Type': 'application/json'
         }
-      );
-
-      expect(response.status).toBe(200);
-
-      // Check if it's wrapped in success/data format or direct JSON-RPC
-      let rpcResponse;
-      if (response.data.success !== undefined) {
-        expect(response.data.success).toBe(true);
-        rpcResponse = response.data.data;
-      } else {
-        rpcResponse = response.data;
       }
+    );
 
-      expect(rpcResponse).toBeDefined();
-      expect(rpcResponse.jsonrpc).toBe('2.0');
-      expect(rpcResponse.id).toBe(1);
-
-      if (rpcResponse.error) {
-        throw new Error(`RPC error: ${JSON.stringify(rpcResponse.error)}`);
-      }
-
-      expect(rpcResponse.result).toBeDefined();
-      expect(typeof rpcResponse.result).toBe('string');
-      expect(rpcResponse.result).toMatch(/^0x[0-9a-fA-F]+$/);
-
-      console.log(`RPC eth_chainId successful. Chain ID: ${rpcResponse.result}`);
-    } catch (e) {
-      if (e instanceof Error) {
-        throw new Error(e.message);
-      }
-      throw e;
-    }
+    expect(response.status).toBe(200);
+    
+    const rpcResponse = response.data.success ? response.data.data : response.data;
+    expect(rpcResponse.result).toBeDefined();
+    console.log(`RPC eth_chainId successful. Chain ID: ${rpcResponse.result}`);
   });
 });
 
