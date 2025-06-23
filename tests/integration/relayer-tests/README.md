@@ -31,10 +31,10 @@ As of now, we test the following methods:
 - `getRelayerStatus`: shows status of relayer
 - `updateRelayer`: pause and resume relayer
 - `listTransactions`: shows the history of transactions and if they are pending, completed,
+- `rpc`: submits a json encoded rpc to the node. lower level call than sendTransaction.
 
 Missing tests, we can add as needed:
 
-- `rpc`: NOT POSSIBLE for EVM as of now
 - `getTransactionById`: get a transaction submitted to the relayer by id
 - `getTransactionByNonce`: get a transaction submitted to the relayer by id
 - `cancelTransaction`: cancel in-flight transaction
