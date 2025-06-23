@@ -49,5 +49,6 @@
       }
     }
   ],
-  "networks": "/app/config/networks"
+  "networks": "/app/config/networks",
+  "plugins": []
 }

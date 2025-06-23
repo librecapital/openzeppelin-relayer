@@ -4,7 +4,7 @@
 services:
   relayer:
     build:
-      context: ../
+      context: ../../
       dockerfile: Dockerfile.development
     ports:
       - 8080:8080/tcp

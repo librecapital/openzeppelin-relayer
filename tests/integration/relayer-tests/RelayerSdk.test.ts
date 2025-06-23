@@ -1,5 +1,6 @@
 import { RelayersApi } from '@openzeppelin/relayer-sdk/src/api.ts';
 import { Configuration } from '@openzeppelin/relayer-sdk/src/configuration.ts';
+import type { JsonRpcRequestNetworkRpcRequest } from '@openzeppelin/relayer-sdk/src/models';
 import { type ApiResponseBalanceResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-balance-response.ts';
 import { type ApiResponseBool } from '@openzeppelin/relayer-sdk/src/models/api-response-bool.ts';
 import { type ApiResponseRelayerResponse } from '@openzeppelin/relayer-sdk/src/models/api-response-relayer-response.ts';
@@ -9,6 +10,7 @@ import type { EvmTransactionRequest } from '@openzeppelin/relayer-sdk/src/models
 import type { EvmTransactionResponse } from '@openzeppelin/relayer-sdk/src/models/evm-transaction-response.ts';
 import type { RelayerUpdateRequest } from '@openzeppelin/relayer-sdk/src/models/relayer-update-request.ts';
 import type { AxiosResponse } from 'axios';
+import axios from 'axios';
 import { describe, expect, test } from 'bun:test';
 import { fail } from "node:assert/strict";
 
@@ -239,6 +241,67 @@ describe('RelayersApi Tests', () => {
     }
   }, maxWaitTime);
 
+  test('rpc functionality works for blockchain queries', async () => {
+    // First verify this is an EVM relayer
+    const relayerInfo = await relayersApi.getRelayer(relayer_id);
+    const relayerData = relayerInfo.data.data;
+    const networkType = relayerData?.network_type;
+
+    if (networkType !== 'evm') {
+      throw new Error(`Expected EVM relayer but got network_type: ${networkType}`);
+    }
+
+    // Test basic RPC functionality for EVM networks
+    const rpcRequest = {
+      jsonrpc: '2.0',
+      method: 'eth_chainId',
+      params: [],
+      id: 1
+    };
+
+    try {
+      const response = await axios.post(
+        `${relayer_endpoint}/api/v1/relayers/${relayer_id}/rpc`,
+        rpcRequest,
+        {
+          headers: {
+            'Authorization': `Bearer ${api_key}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      expect(response.status).toBe(200);
+
+      // Check if it's wrapped in success/data format or direct JSON-RPC
+      let rpcResponse;
+      if (response.data.success !== undefined) {
+        expect(response.data.success).toBe(true);
+        rpcResponse = response.data.data;
+      } else {
+        rpcResponse = response.data;
+      }
+
+      expect(rpcResponse).toBeDefined();
+      expect(rpcResponse.jsonrpc).toBe('2.0');
+      expect(rpcResponse.id).toBe(1);
+
+      if (rpcResponse.error) {
+        throw new Error(`RPC error: ${JSON.stringify(rpcResponse.error)}`);
+      }
+
+      expect(rpcResponse.result).toBeDefined();
+      expect(typeof rpcResponse.result).toBe('string');
+      expect(rpcResponse.result).toMatch(/^0x[0-9a-fA-F]+$/);
+
+      console.log(`RPC eth_chainId successful. Chain ID: ${rpcResponse.result}`);
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(e.message);
+      }
+      throw e;
+    }
+  });
 });
 
 
